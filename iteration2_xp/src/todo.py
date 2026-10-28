@@ -1,9 +1,6 @@
 """Itération 2 — version XP : TDD, refactoring, séparation des responsabilités."""
-import unicodedata
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List
-
-MAX_TITLE_LENGTH = 100
 
 
 @dataclass
@@ -13,33 +10,17 @@ class Task:
     done: bool = False
 
 
-def _normalize(text: str) -> str:
-    """Minuscules + suppression des accents ('cafe' trouve 'Café')."""
-    decomposed = unicodedata.normalize("NFD", text)
-    without_accents = "".join(c for c in decomposed if not unicodedata.combining(c))
-    return without_accents.casefold()
-
-
-def _validate_title(title: str) -> str:
-    if not title or not title.strip():
-        raise ValueError("Le titre ne peut pas être vide.")
-    title = title.strip()
-    if len(title) > MAX_TITLE_LENGTH:
-        raise ValueError(
-            f"Le titre ne peut pas dépasser {MAX_TITLE_LENGTH} caractères."
-        )
-    return title
-
-
 class TodoList:
     """Gestionnaire de tâches avec invariants clairs (testés)."""
 
     def __init__(self) -> None:
         self._tasks: List[Task] = []
-        self._next_id: int = 1  # jamais réutilisé, même après un delete
+        self._next_id: int = 1
 
     def add(self, title: str) -> Task:
-        task = Task(id=self._next_id, title=_validate_title(title))
+        if not title or not title.strip():
+            raise ValueError("Le titre ne peut pas être vide.")
+        task = Task(id=self._next_id, title=title.strip())
         self._tasks.append(task)
         self._next_id += 1
         return task
@@ -61,19 +42,10 @@ class TodoList:
         self._find(task_id).done = True
 
     def search(self, keyword: str) -> List[Task]:
-        kw = _normalize(keyword)
-        return [t for t in self._tasks if kw in _normalize(t.title)]
+        kw = keyword.lower()
+        return [t for t in self._tasks if kw in t.title.lower()]
 
     def stats(self) -> dict:
         total = len(self._tasks)
         done = sum(1 for t in self._tasks if t.done)
         return {"total": total, "done": done}
-
-    # --- Lot B ---
-    def filter_by_status(self, done: bool) -> List[Task]:
-        return [t for t in self._tasks if t.done is done]
-
-    def edit(self, task_id: int, new_title: str) -> Task:
-        task = self._find(task_id)
-        task.title = _validate_title(new_title)
-        return task
